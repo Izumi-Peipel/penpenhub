@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, bcmath, pdo_sqlite
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+
+      # Jalankan lebih dulu agar kegagalan isolasi tenant (R2) terlihat jelas.
+      - name: Tenant isolation (wajib hijau)
+        run: php artisan test --filter=TenantIsolationTest
+
+      - name: Test suite
+        run: php artisan test
+
+      # Jalankan `vendor/bin/pint` sekali secara lokal, lalu hapus continue-on-error.
+      - name: Code style (Pint)
+        run: vendor/bin/pint --test
+        continue-on-error: true
