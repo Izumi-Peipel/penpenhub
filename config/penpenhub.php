@@ -88,4 +88,40 @@ return [
             'other' => ['label' => 'Lainnya', 'priority' => 'P4'],
         ]],
     ],
+
+    // Target SLA Sprint 3 (PRD): response time & resolution time per prioritas.
+    'sla' => [
+        'P1' => [
+            'response_minutes' => 15,
+            'resolution_minutes' => 120, // 2 jam
+            'calendar' => '24x7',
+        ],
+        'P2' => [
+            'response_minutes' => 30,
+            'resolution_minutes' => 240, // 4 jam kerja
+            'calendar' => 'operating_hours',
+        ],
+        'P3' => [
+            'response_minutes' => 120,    // 2 jam kerja
+            'resolution_minutes' => 1440, // 24 jam kerja
+            'calendar' => 'operating_hours',
+        ],
+        'P4' => [
+            'response_minutes' => 480,    // 8 jam kerja
+            'resolution_minutes' => 4320, // 72 jam kerja (3 hari)
+            'calendar' => 'operating_hours',
+        ],
+        // Jam operasional default bila outlet tidak ditentukan (misal tiket website/brand) atau belum diisi.
+        'default_operating_hours' => [
+            'mon' => [['09:00', '21:00']],
+            'tue' => [['09:00', '21:00']],
+            'wed' => [['09:00', '21:00']],
+            'thu' => [['09:00', '21:00']],
+            'fri' => [['09:00', '21:00']],
+            'sat' => [['09:00', '21:00']],
+            'sun' => [['09:00', '21:00']],
+        ],
+        'default_timezone' => 'Asia/Jakarta',
+    ],
 ];
+

@@ -46,15 +46,40 @@ final class TransitionTicket
     /** Terapkan perubahan tanpa cek otorisasi; dipakai juga untuk perubahan otomatis (mis. klien membalas). */
     public function apply(Ticket $ticket, string $to, User $actor, ?string $reason = null): Ticket
     {
+        $now = now();
         $from = $ticket->status;
         $updates = ['status' => $to];
 
         if ($to === TicketStatus::DITERIMA && $ticket->responded_at === null) {
-            $updates['responded_at'] = now();
+            $updates['responded_at'] = $now;
+            if ($ticket->sla_response_due_at && $now->isAfter($ticket->sla_response_due_at)) {
+                $updates['sla_response_breached'] = true;
+            }
+        }
+
+        // Mulai jeda SLA jika masuk ke "menunggu_klien"
+        if ($to === TicketStatus::MENUNGGU_KLIEN && $ticket->sla_paused_at === null) {
+            $updates['sla_paused_at'] = $now;
+        }
+
+        // Akhiri jeda SLA jika keluar dari "menunggu_klien"
+        if ($from === TicketStatus::MENUNGGU_KLIEN && $to !== TicketStatus::MENUNGGU_KLIEN && $ticket->sla_paused_at !== null) {
+            $pausedSeconds = abs((int) $ticket->sla_paused_at->diffInSeconds($now));
+            $updates['total_paused_seconds'] = (int) $ticket->total_paused_seconds + $pausedSeconds;
+            $updates['sla_paused_at'] = null;
+
+
+            $newResolutionDue = \App\Support\SlaCalculator::extendResolutionDueForPause($ticket, $ticket->sla_paused_at, $now);
+            if ($newResolutionDue !== null) {
+                $updates['sla_resolution_due_at'] = $newResolutionDue;
+            }
         }
 
         if ($to === TicketStatus::TERSELESAIKAN) {
-            $updates['resolved_at'] = now();
+            $updates['resolved_at'] = $now;
+            if ($ticket->sla_resolution_due_at && $now->isAfter($ticket->sla_resolution_due_at)) {
+                $updates['sla_resolution_breached'] = true;
+            }
         }
 
         if ($from === TicketStatus::TERSELESAIKAN && $to === TicketStatus::DIKERJAKAN) {
@@ -62,7 +87,7 @@ final class TransitionTicket
         }
 
         if ($to === TicketStatus::DITUTUP) {
-            $updates['closed_at'] = now();
+            $updates['closed_at'] = $now;
         }
 
         $ticket->forceFill($updates)->save();
@@ -73,4 +98,5 @@ final class TransitionTicket
 
         return $ticket;
     }
+
 }

@@ -37,7 +37,12 @@
         .row > * { flex: 1; min-width: 140px; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .8rem; background: #e4e4df; }
         .badge.P1 { background: #b00020; color: #fff; } .badge.P2 { background: #e67e22; color: #fff; }
+        .badge.met { background: #1b6e3c; color: #fff; }
+        .badge.breached { background: #b00020; color: #fff; }
+        .badge.pending { background: #2563eb; color: #fff; }
+        .badge.paused { background: #6b7280; color: #fff; }
         .error { color: #b00020; font-size: .85rem; } .status { color: #1b6e3c; }
+
         table { width: 100%; border-collapse: collapse; } td, th { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
         .internal { background: #fff7e0; border-left: 4px solid #e6a700; }
         .muted { color: #666; font-size: .85rem; }

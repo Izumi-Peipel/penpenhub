@@ -70,7 +70,11 @@ final class CreateTicket
             $title = $cat['label'].($symptom ? ' - '.$cat['symptoms'][$symptom]['label'] : '');
         }
 
-        $ticket = DB::transaction(function () use ($data, $brand, $outlet, $asset, $actor, $priority, $title, $symptom, $confirmed) {
+        $now = now();
+        $responseDue = \App\Support\SlaCalculator::calculateResponseDue($priority, $now, $outlet);
+        $resolutionDue = \App\Support\SlaCalculator::calculateResolutionDue($priority, $now, $outlet);
+
+        $ticket = DB::transaction(function () use ($data, $brand, $outlet, $asset, $actor, $priority, $title, $symptom, $confirmed, $responseDue, $resolutionDue) {
             $ticket = Ticket::create([
                 'company_id' => $brand->company_id,
                 'brand_id' => $brand->id,
@@ -84,7 +88,10 @@ final class CreateTicket
                 'title' => $title,
                 'description' => $data['description'],
                 'critical_confirmed' => $confirmed,
+                'sla_response_due_at' => $responseDue,
+                'sla_resolution_due_at' => $resolutionDue,
             ]);
+
 
             if (! empty($data['attachments'])) {
                 app(AttachmentStore::class)->store($data['attachments'], $ticket, $actor, (int) $brand->company_id);

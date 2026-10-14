@@ -22,6 +22,8 @@ class Ticket extends Model
         'company_id', 'brand_id', 'outlet_id', 'asset_id', 'reported_by', 'assigned_to',
         'category', 'symptom', 'priority', 'status', 'title', 'description', 'critical_confirmed',
         'responded_at', 'resolved_at', 'closed_at',
+        'sla_response_due_at', 'sla_resolution_due_at', 'sla_paused_at',
+        'total_paused_seconds', 'sla_response_breached', 'sla_resolution_breached',
     ];
 
     protected $casts = [
@@ -31,7 +33,12 @@ class Ticket extends Model
         'closed_at' => 'datetime',
         'sla_response_due_at' => 'datetime',
         'sla_resolution_due_at' => 'datetime',
+        'sla_paused_at' => 'datetime',
+        'total_paused_seconds' => 'integer',
+        'sla_response_breached' => 'boolean',
+        'sla_resolution_breached' => 'boolean',
     ];
+
 
     protected static function booted(): void
     {
@@ -74,6 +81,80 @@ class Ticket extends Model
     {
         return $this->status !== TicketStatus::DITUTUP;
     }
+
+    public function isSlaPaused(): bool
+    {
+        return $this->sla_paused_at !== null || $this->status === TicketStatus::MENUNGGU_KLIEN;
+    }
+
+    public function isResponseBreached(): bool
+    {
+        if ($this->sla_response_breached) {
+            return true;
+        }
+
+        if ($this->sla_response_due_at === null) {
+            return false;
+        }
+
+        if ($this->responded_at !== null) {
+            return $this->responded_at->isAfter($this->sla_response_due_at);
+        }
+
+        return now()->isAfter($this->sla_response_due_at);
+    }
+
+    public function isResolutionBreached(): bool
+    {
+        if ($this->sla_resolution_breached) {
+            return true;
+        }
+
+        if ($this->sla_resolution_due_at === null) {
+            return false;
+        }
+
+        if ($this->resolved_at !== null) {
+            return $this->resolved_at->isAfter($this->sla_resolution_due_at);
+        }
+
+        if ($this->isSlaPaused()) {
+            return false;
+        }
+
+        return now()->isAfter($this->sla_resolution_due_at);
+    }
+
+    public function responseSlaStatus(): string
+    {
+        if ($this->sla_response_due_at === null) {
+            return 'none';
+        }
+
+        if ($this->responded_at !== null) {
+            return $this->responded_at->isAfter($this->sla_response_due_at) ? 'breached' : 'met';
+        }
+
+        return now()->isAfter($this->sla_response_due_at) ? 'breached' : 'pending';
+    }
+
+    public function resolutionSlaStatus(): string
+    {
+        if ($this->sla_resolution_due_at === null) {
+            return 'none';
+        }
+
+        if ($this->resolved_at !== null) {
+            return $this->resolved_at->isAfter($this->sla_resolution_due_at) ? 'breached' : 'met';
+        }
+
+        if ($this->isSlaPaused()) {
+            return 'paused';
+        }
+
+        return now()->isAfter($this->sla_resolution_due_at) ? 'breached' : 'pending';
+    }
+
 
     public function resolveCompanyId(): ?int
     {

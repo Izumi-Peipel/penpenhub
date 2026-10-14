@@ -89,6 +89,117 @@ final class OperatingHours
         return false;
     }
 
+    public function schedule(): array
+    {
+        return $this->schedule;
+    }
+
+    public function isEmpty(): bool
+    {
+        foreach ($this->schedule as $intervals) {
+            if (! empty($intervals)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Mengembalikan interval buka pada hari tertentu (dalam pasangan [CarbonImmutable $start, CarbonImmutable $end]).
+     *
+     * @return array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>
+     */
+    public function intervalsForDate(CarbonInterface $date, string $timezone = 'Asia/Jakarta'): array
+    {
+        $local = CarbonImmutable::instance($date)->setTimezone($timezone)->startOfDay();
+        $today = self::DAYS[$local->dayOfWeekIso - 1];
+        $yesterday = self::DAYS[($local->dayOfWeekIso + 5) % 7];
+
+        $windows = [];
+
+        // Interval dari kemarin yang melewati tengah malam (sebelum 00:00 s.d. jam tutup pagi ini)
+        foreach ($this->schedule[$yesterday] ?? [] as [$open, $close]) {
+            if (self::minutes($close) < self::minutes($open)) {
+                $closeTime = self::makeTime($local, $close);
+                $windows[] = [$local, $closeTime];
+            }
+        }
+
+        // Interval yang dimulai hari ini
+        foreach ($this->schedule[$today] ?? [] as [$open, $close]) {
+            $openTime = self::makeTime($local, $open);
+            if ($close === '24:00') {
+                $closeTime = $local->addDay()->startOfDay();
+            } elseif (self::minutes($close) < self::minutes($open)) {
+                $closeTime = self::makeTime($local->addDay(), $close);
+            } else {
+                $closeTime = self::makeTime($local, $close);
+            }
+            $windows[] = [$openTime, $closeTime];
+        }
+
+        usort($windows, fn ($a, $b) => $a[0]->getTimestamp() <=> $b[0]->getTimestamp());
+
+        return $windows;
+    }
+
+    /**
+     * Menambahkan sejumlah menit kerja operasional dari waktu acuan.
+     */
+    public function addOperatingMinutes(CarbonInterface $from, int $minutes, string $timezone = 'Asia/Jakarta'): CarbonImmutable
+    {
+        if ($minutes <= 0) {
+            return CarbonImmutable::instance($from)->setTimezone($timezone);
+        }
+
+        if ($this->isEmpty()) {
+            return CarbonImmutable::instance($from)->setTimezone($timezone)->addMinutes($minutes);
+        }
+
+        $current = CarbonImmutable::instance($from)->setTimezone($timezone);
+        $remaining = $minutes;
+        $maxDays = 30;
+        $dayCursor = $current->startOfDay();
+
+        for ($d = 0; $d < $maxDays; $d++) {
+            $windows = $this->intervalsForDate($dayCursor, $timezone);
+
+            foreach ($windows as [$start, $end]) {
+                if ($end <= $current) {
+                    continue;
+                }
+
+                if ($current < $start) {
+                    $current = $start;
+                }
+
+                $available = (int) $current->diffInMinutes($end);
+                if ($available <= 0) {
+                    continue;
+                }
+
+                if ($remaining <= $available) {
+                    return $current->addMinutes($remaining);
+                }
+
+                $remaining -= $available;
+                $current = $end;
+            }
+
+            $dayCursor = $dayCursor->addDay();
+        }
+
+        return $current->addMinutes($remaining);
+    }
+
+    private static function makeTime(CarbonImmutable $base, string $time): CarbonImmutable
+    {
+        [$h, $m] = explode(':', $time);
+
+        return $base->setHour((int) $h)->setMinute((int) $m)->setSecond(0);
+    }
+
     private static function validTime(mixed $value, bool $allow24): bool
     {
         return is_string($value) && (preg_match(self::TIME, $value) === 1 || ($allow24 && $value === '24:00'));
@@ -101,3 +212,4 @@ final class OperatingHours
         return (int) $h * 60 + (int) $m;
     }
 }
+

@@ -20,12 +20,30 @@ final class ChangeTicketPriority
         $from = $ticket->priority;
 
         if ($from !== $priority) {
-            $ticket->forceFill(['priority' => $priority])->save();
+            $updates = ['priority' => $priority];
+
+            $outlet = $ticket->outlet;
+            $baseTime = $ticket->created_at ?: now();
+
+            if ($ticket->responded_at === null) {
+                $updates['sla_response_due_at'] = \App\Support\SlaCalculator::calculateResponseDue($priority, $baseTime, $outlet);
+            }
+
+            if ($ticket->resolved_at === null) {
+                $newResolutionDue = \App\Support\SlaCalculator::calculateResolutionDue($priority, $baseTime, $outlet);
+                if ($ticket->total_paused_seconds > 0) {
+                    $newResolutionDue = $newResolutionDue->addSeconds($ticket->total_paused_seconds);
+                }
+                $updates['sla_resolution_due_at'] = $newResolutionDue;
+            }
+
+            $ticket->forceFill($updates)->save();
 
             AuditLogger::log('ticket.priority_changed', $ticket, [
                 'from' => $from, 'to' => $priority, 'reason' => $reason,
             ], $ticket->company_id, $actor);
         }
+
 
         return $ticket;
     }

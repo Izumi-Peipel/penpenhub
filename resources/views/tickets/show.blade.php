@@ -19,8 +19,57 @@
         @endforeach
     </div>
 
+    <div class="card">
+        <strong>Target SLA</strong>
+        <div class="row" style="margin-top: 8px">
+            <div>
+                <div class="muted">SLA Respon</div>
+                <div>
+                    @if ($ticket->sla_response_due_at)
+                        {{ $ticket->sla_response_due_at->timezone('Asia/Jakarta')->format('d M Y H:i') }} WIB
+                        @if ($ticket->responded_at)
+                            &middot; Direspon {{ $ticket->responded_at->timezone('Asia/Jakarta')->format('H:i') }}
+                            <span class="badge {{ $ticket->isResponseBreached() ? 'breached' : 'met' }}">
+                                {{ $ticket->isResponseBreached() ? 'Lewat SLA' : 'Tepat Waktu' }}
+                            </span>
+                        @else
+                            <span class="badge {{ $ticket->isResponseBreached() ? 'breached' : 'pending' }}">
+                                {{ $ticket->isResponseBreached() ? 'Lewat SLA' : 'Menunggu respon' }}
+                            </span>
+                        @endif
+                    @else
+                        <span class="muted">-</span>
+                    @endif
+                </div>
+            </div>
+            <div>
+                <div class="muted">SLA Resolusi</div>
+                <div>
+                    @if ($ticket->sla_resolution_due_at)
+                        {{ $ticket->sla_resolution_due_at->timezone('Asia/Jakarta')->format('d M Y H:i') }} WIB
+                        @if ($ticket->resolved_at)
+                            &middot; Selesai {{ $ticket->resolved_at->timezone('Asia/Jakarta')->format('H:i') }}
+                            <span class="badge {{ $ticket->isResolutionBreached() ? 'breached' : 'met' }}">
+                                {{ $ticket->isResolutionBreached() ? 'Lewat SLA' : 'Tepat Waktu' }}
+                            </span>
+                        @elseif ($ticket->isSlaPaused())
+                            <span class="badge paused">Dijeda (Menunggu klien)</span>
+                        @else
+                            <span class="badge {{ $ticket->isResolutionBreached() ? 'breached' : 'pending' }}">
+                                {{ $ticket->isResolutionBreached() ? 'Lewat SLA' : 'Dalam pengerjaan' }}
+                            </span>
+                        @endif
+                    @else
+                        <span class="muted">-</span>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
     @if (count($transitions))
         <div class="card">
+
             <strong>Ubah status</strong>
             @foreach ($transitions as $to)
                 <form method="POST" action="{{ route('tickets.status', $ticket) }}" class="row" style="margin-top:8px">
