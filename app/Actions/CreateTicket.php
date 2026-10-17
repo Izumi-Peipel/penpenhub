@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\PrioritySuggester;
+use App\Support\QuotaManager;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -105,6 +106,9 @@ final class CreateTicket
             'category' => $data['category'],
             'critical_confirmed' => $confirmed,
         ], $brand->company_id, $actor);
+
+        // Catat pemakaian 1 request kuota (non-blocking: tidak ada langganan = lanjut saja).
+        app(QuotaManager::class)->incrementRequestUsage($brand->company_id);
 
         return $ticket;
     }

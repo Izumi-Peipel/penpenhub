@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\ContextController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\TicketController;
 use App\Livewire\QuickTicket;
@@ -13,9 +14,7 @@ Route::post('/invitations/{token}', [InvitationController::class, 'accept'])
     ->name('invitations.accept');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard', ['user' => auth()->user()->load('memberships.company')]);
-    })->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::post('/context', [ContextController::class, 'update'])->name('context.update');
 

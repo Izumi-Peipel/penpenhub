@@ -15,10 +15,22 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Roles & permissions (harus pertama)
+        $this->call(RolesAndPermissionsSeeder::class);
 
+        // Paket langganan
+        $this->call(PlansSeeder::class);
+
+        // User super admin untuk akses panel
         User::factory()->create([
-            'name' => 'Test User',
+            'name'        => 'Admin PenpenHub',
+            'email'       => 'admin@penpenhub.id',
+            'is_internal' => true,
+        ]);
+
+        // User klien demo
+        User::factory()->create([
+            'name'  => 'Test User',
             'email' => 'test@example.com',
         ]);
     }
